@@ -1,69 +1,68 @@
-# Image Resize GitHub Action
+# PR Image Width Adjuster
 
-Automatically resize images in Pull Request descriptions to a specified width.
+Automatically adjust the display width of images in Pull Request descriptions by converting Markdown to HTML img tags.
 
 ## Purpose
 
-This GitHub Action was created to help React Native app developers who frequently add screenshots to their repositories. It automatically detects image URLs in pull request descriptions and resizes them to a configurable width (default: 300px), then updates the PR description with the resized images.
+This GitHub Action was created to help React Native app developers who frequently add screenshots to their repositories. It automatically detects image URLs in pull request descriptions and adds a width attribute to control their display size without physically resizing the images.
 
 ## Features
 
 - Automatically detects image URLs (jpg, jpeg, png) in pull request descriptions
-- Downloads and resizes images to a specified width while maintaining aspect ratio
-- Uploads resized images as GitHub Gists
-- Updates the PR description with links to the resized images
+- Converts Markdown image syntax to HTML `<img>` tags with width attribute
+- Preserves the original image URLs and alt text
+- No image downloading or processing required
 - Configurable target width
 
 ## Setup
 
-Add this GitHub Action to your repository by creating a workflow file (e.g., `.github/workflows/resize-images.yml`):
+This GitHub Action is already set up in our repository's workflow (`.github/workflows/resize-images.yml`):
 
 ```yaml
-name: Resize Images
+name: Adjust Image Widths
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, edited, synchronize]
 
 jobs:
-  resize-images:
+  adjust-image-widths:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Resize Images
-        uses: your-username/image-resize-github-action@v1
+      - name: Adjust image widths in PR description
+        uses: your-username/pr-image-width-adjuster@v1.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          width: 300
+          width: 500 # Set the desired width for images
 ```
 
 ## Inputs
 
-| Input   | Description                     | Required | Default |
-| ------- | ------------------------------- | -------- | ------- |
-| `token` | GitHub token for API access     | Yes      | N/A     |
-| `width` | Target width for resized images | No       | `300`   |
+| Input   | Description                         | Required | Default |
+| ------- | ----------------------------------- | -------- | ------- |
+| `token` | GitHub token for API access         | Yes      | N/A     |
+| `width` | Target width for images (in pixels) | No       | `300`   |
 
 ## Usage
 
-1. Set up the workflow as described above
-2. Add images to your pull request description using standard Markdown syntax: `![description](image_url)`
-3. The action will automatically:
+1. Add images to your pull request description using standard Markdown syntax: `![description](image_url)`
+2. The action will automatically:
    - Detect image URLs in the PR description
-   - Download and resize any images that exceed the target width
-   - Upload resized images as GitHub Gists
-   - Update the PR description with the resized image URLs
+   - Convert them to HTML `<img>` tags with the specified width
+   - Update the PR description with the HTML tags
 
-## Publishing to GitHub Marketplace
+## How It's Different
 
-To publish this action to GitHub Marketplace:
+Our previous approach physically resized images by downloading, resizing, and re-uploading them as GitHub Gists. This new approach is:
 
-1. Create a new repository on GitHub
-2. Push this code to the repository
-3. Create a new release and tag it with a semantic version (e.g., v1.0.0)
-4. Go to your repository settings and publish to the GitHub Marketplace
+- **Faster**: No image processing or uploading required
+- **Simpler**: Fewer dependencies and potential points of failure
+- **More reliable**: Original image URLs are preserved
+
+For more details, see the [full documentation](.github/IMAGE_WIDTH_ADJUSTER.md).
 
 ## License
 

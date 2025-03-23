@@ -16,7 +16,7 @@ This GitHub Action was created to help React Native app developers who frequentl
 
 ## Setup
 
-This GitHub Action is already set up in our repository's workflow (`.github/workflows/resize-images.yml`):
+Add this GitHub Action to your repository's workflow:
 
 ```yaml
 name: Adjust Image Widths
@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Adjust image widths in PR description
-        uses: your-username/pr-image-width-adjuster@v1.0.0
+        uses: mljlynch/image-resize-github-action@v1.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           width: 500 # Set the desired width for images
@@ -62,9 +62,25 @@ Our previous approach physically resized images by downloading, resizing, and re
 - **Simpler**: Fewer dependencies and potential points of failure
 - **More reliable**: Original image URLs are preserved
 
-For more details, see the [full documentation](.github/IMAGE_WIDTH_ADJUSTER.md).
+## Development
 
-Dummy Change
+### Building the Action
+
+This repository includes pre-built files in the `dist` directory, which are necessary for the GitHub Action to work. If you make changes to the source code, you'll need to rebuild:
+
+```bash
+# Install dependencies
+npm install
+
+# Build the action
+npm run build
+
+# Commit the updated dist files
+git add dist/
+git commit -m "Update dist files"
+```
+
+The repository is configured with a GitHub workflow that automatically builds the action when changes are pushed to the `main` branch.
 
 ## License
 

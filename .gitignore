@@ -1,6 +1,12 @@
+# Dependency directories
 node_modules/
+
+# Coverage directory
 coverage/
+
+# Logs
+*.log
+
+# Misc
 .DS_Store
 .vscode/
-*.log 
-dist/

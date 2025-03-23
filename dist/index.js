@@ -34533,6 +34533,8 @@ async function run() {
 
     const description = pullRequest.body || "";
 
+    console.log("description: ", description);
+
     // Find markdown image syntax
     const markdownMatches = [...description.matchAll(markdownImageRegex)];
 

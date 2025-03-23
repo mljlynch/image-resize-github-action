@@ -1,0 +1,16 @@
+name: "Image Resize Action"
+description: "Automatically resize images in Pull Request descriptions"
+inputs:
+  width:
+    description: "Target width for resized images"
+    required: false
+    default: "300"
+  token:
+    description: "GitHub token for API access"
+    required: true
+runs:
+  using: "node16"
+  main: "dist/index.js"
+branding:
+  icon: "image"
+  color: "blue"

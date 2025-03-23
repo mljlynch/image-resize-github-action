@@ -137,4 +137,63 @@ describe("Image Regex Patterns", () => {
       }
     });
   });
+
+  describe("Width attribute replacement", () => {
+    test("should be able to extract and replace existing width attribute", () => {
+      const originalTag =
+        '<img width="1196" alt="Screenshot" src="https://github.com/user-attachments/assets/123456789">';
+      const targetWidth = 500;
+
+      // Extract components
+      const altMatch = originalTag.match(/alt="([^"]*)"/i);
+      const imgAltText = altMatch ? altMatch[1] : "";
+
+      const srcMatch = originalTag.match(/src="([^"]*)"/i);
+      const imageUrl = srcMatch ? srcMatch[1] : "";
+
+      // Create new tag
+      const newHtmlTag = `<img width="${targetWidth}" src="${imageUrl}" alt="${imgAltText}" />`;
+
+      // Verify components were extracted correctly
+      expect(imgAltText).toBe("Screenshot");
+      expect(imageUrl).toBe(
+        "https://github.com/user-attachments/assets/123456789"
+      );
+
+      // Verify the new tag has the correct width
+      expect(newHtmlTag).toContain(`width="${targetWidth}"`);
+      expect(newHtmlTag).not.toContain('width="1196"');
+    });
+
+    test("should always override existing width with target width", () => {
+      // The real example from the PR description
+      const description =
+        'This is test image to resize.\n\n<img width="1196" alt="Screenshot 2025-03-23 at 2 03 33 PM" src="https://github.com/user-attachments/assets/0c5b0873-7b1c-46af-a816-5b355b07840a" />```';
+
+      const targetWidth = 500;
+      const simpleMatches = [...description.matchAll(simpleImgRegex)];
+
+      // Get the matched tag
+      const [fullMatch, imageUrl] = simpleMatches[0];
+
+      // Extract alt text
+      const altMatch = fullMatch.match(/alt="([^"]*)"/i);
+      const imgAltText = altMatch ? altMatch[1] : "";
+
+      // Create new tag with target width
+      const newHtmlTag = `<img width="${targetWidth}" src="${imageUrl}" alt="${imgAltText}" />`;
+
+      // Create modified description
+      const newDescription = description.replace(fullMatch, newHtmlTag);
+
+      // Verify width was updated
+      expect(newDescription).not.toContain('width="1196"');
+      expect(newDescription).toContain(`width="${targetWidth}"`);
+
+      // Verify replacement worked in context
+      expect(newDescription).toBe(
+        `This is test image to resize.\n\n<img width="${targetWidth}" src="https://github.com/user-attachments/assets/0c5b0873-7b1c-46af-a816-5b355b07840a" alt="Screenshot 2025-03-23 at 2 03 33 PM" />\`\`\``
+      );
+    });
+  });
 });

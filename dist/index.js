@@ -34577,24 +34577,27 @@ async function run() {
           const [fullMatch, imageUrl] = match;
           core.info(`Processing image with fallback: ${imageUrl}`);
 
-          // Skip if already has width attribute
-          if (fullMatch.includes("width=")) {
-            core.info(`Image already has width attribute, skipping.`);
-            continue;
-          }
-
+          // Process all images, even if they already have a width attribute
           try {
             // Extract alt text if it exists
             const altMatch = fullMatch.match(/alt="([^"]*)"/i);
             const imgAltText = altMatch ? altMatch[1] : "";
+
+            if (fullMatch.includes("width=")) {
+              core.info(
+                `Updating existing width attribute to ${targetWidth}px with fallback method`
+              );
+            } else {
+              core.info(
+                `Adding width attribute (${targetWidth}px) with fallback method`
+              );
+            }
 
             // Create new tag with width attribute
             const newHtmlTag = `<img width="${targetWidth}" src="${imageUrl}" alt="${imgAltText}" />`;
 
             // Replace the original tag
             newDescription = newDescription.replace(fullMatch, newHtmlTag);
-
-            core.info(`Added width attribute (${targetWidth}px) to image`);
           } catch (error) {
             core.warning(`Error processing simple image: ${error.message}`);
           }
@@ -34650,15 +34653,24 @@ async function run() {
       const [fullMatch, imageUrl] = match;
       const imageUrlDecoded = decodeURI(imageUrl);
 
-      // Check if the img tag already has a width attribute
-      if (!fullMatch.includes("width=")) {
-        core.info(`Processing HTML img tag: ${imageUrlDecoded}`);
+      // Process all HTML img tags, even if they already have a width attribute
+      core.info(`Processing HTML img tag: ${imageUrlDecoded}`);
 
-        try {
-          // Extract alt text if it exists
-          const altMatch = fullMatch.match(/alt="([^"]*)"/i);
-          const imgAltText = altMatch ? altMatch[1] : "";
+      try {
+        // Extract alt text if it exists
+        const altMatch = fullMatch.match(/alt="([^"]*)"/i);
+        const imgAltText = altMatch ? altMatch[1] : "";
 
+        if (fullMatch.includes("width=")) {
+          core.info(`Updating existing width attribute to ${targetWidth}px`);
+
+          // Replace the existing width attribute with the new value
+          // First create a new tag with our desired width
+          const newHtmlTag = `<img width="${targetWidth}" src="${imageUrlDecoded}" alt="${imgAltText}" />`;
+
+          // Replace the original tag
+          newDescription = newDescription.replace(fullMatch, newHtmlTag);
+        } else {
           // Create new tag with width attribute
           const newHtmlTag = `<img width="${targetWidth}" src="${imageUrlDecoded}" alt="${imgAltText}" />`;
 
@@ -34666,14 +34678,10 @@ async function run() {
           newDescription = newDescription.replace(fullMatch, newHtmlTag);
 
           core.info(`Added width attribute (${targetWidth}px) to HTML img tag`);
-        } catch (error) {
-          core.warning(
-            `Error processing HTML img tag ${imageUrlDecoded}: ${error.message}`
-          );
         }
-      } else {
-        core.info(
-          `Skipping HTML img tag that already has width attribute: ${imageUrlDecoded}`
+      } catch (error) {
+        core.warning(
+          `Error processing HTML img tag ${imageUrlDecoded}: ${error.message}`
         );
       }
     }

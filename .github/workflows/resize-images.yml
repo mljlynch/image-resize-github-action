@@ -12,7 +12,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Adjust image widths in PR description
-        uses: your-username/pr-image-width-adjuster@v1.0.0
+        uses: mljlynch/image-resize-github-action@v1.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           width: 300 # Set the desired width for images in PR descriptions

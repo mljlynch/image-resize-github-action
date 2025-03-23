@@ -64,6 +64,8 @@ Our previous approach physically resized images by downloading, resizing, and re
 
 For more details, see the [full documentation](.github/IMAGE_WIDTH_ADJUSTER.md).
 
+Dummy Change
+
 ## License
 
 MIT

@@ -34501,9 +34501,8 @@ const os = __nccwpck_require__(2037);
 const markdownImageRegex =
   /!\[.*?\]\((https?:\/\/.*?\.(?:png|jpg|jpeg)(?:\?[^)]*)?)\)/g;
 
-// Regex to find existing HTML img tags
-const htmlImgTagRegex =
-  /<img.*?src="(https?:\/\/.*?\.(?:png|jpg|jpeg)(?:\?[^)]*)?)".*?>/gi;
+// Improved regex to find existing HTML img tags - more flexible with the URL pattern
+const htmlImgTagRegex = /<img.*?src="(https?:\/\/.*?(?:\/[^"]*)?)".*?>/gi;
 
 async function run() {
   try {
@@ -34533,7 +34532,19 @@ async function run() {
 
     const description = pullRequest.body || "";
 
-    console.log("description: ", description);
+    // Enhanced debugging
+    core.info(`PR Description Length: ${description.length} characters`);
+    // Log description content safely (avoid leaking sensitive info)
+    core.info(`PR Description Excerpt: ${description.substring(0, 100)}...`);
+
+    // Debug info for HTML img tags
+    const htmlImgTagMatch = description.match(/<img[^>]*>/gi);
+    if (htmlImgTagMatch) {
+      core.info(`Raw img tags found: ${htmlImgTagMatch.length}`);
+      core.info(`First img tag: ${htmlImgTagMatch[0]}`);
+    } else {
+      core.info("No raw img tags found in description");
+    }
 
     // Find markdown image syntax
     const markdownMatches = [...description.matchAll(markdownImageRegex)];
@@ -34541,10 +34552,67 @@ async function run() {
     // Find HTML img tags
     const htmlTagMatches = [...description.matchAll(htmlImgTagRegex)];
 
+    // Log debug info about matches
+    if (htmlTagMatches.length > 0) {
+      core.info(`HTML matches details: ${JSON.stringify(htmlTagMatches[0])}`);
+    }
+
     const totalMatches = markdownMatches.length + htmlTagMatches.length;
 
     if (totalMatches === 0) {
       core.info("No images found in pull request description.");
+
+      // Try a simpler approach as fallback
+      const simpleImgRegex = /<img[^>]*src="([^"]*)"[^>]*>/gi;
+      const simpleMatches = [...description.matchAll(simpleImgRegex)];
+
+      if (simpleMatches.length > 0) {
+        core.info(
+          `Found ${simpleMatches.length} images with simple regex fallback.`
+        );
+
+        let newDescription = description;
+        // Process images with simpler regex
+        for (const match of simpleMatches) {
+          const [fullMatch, imageUrl] = match;
+          core.info(`Processing image with fallback: ${imageUrl}`);
+
+          // Skip if already has width attribute
+          if (fullMatch.includes("width=")) {
+            core.info(`Image already has width attribute, skipping.`);
+            continue;
+          }
+
+          try {
+            // Extract alt text if it exists
+            const altMatch = fullMatch.match(/alt="([^"]*)"/i);
+            const imgAltText = altMatch ? altMatch[1] : "";
+
+            // Create new tag with width attribute
+            const newHtmlTag = `<img width="${targetWidth}" src="${imageUrl}" alt="${imgAltText}" />`;
+
+            // Replace the original tag
+            newDescription = newDescription.replace(fullMatch, newHtmlTag);
+
+            core.info(`Added width attribute (${targetWidth}px) to image`);
+          } catch (error) {
+            core.warning(`Error processing simple image: ${error.message}`);
+          }
+        }
+
+        // Update PR description if it was changed
+        if (newDescription !== description) {
+          await octokit.rest.pulls.update({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.payload.pull_request.number,
+            body: newDescription,
+          });
+
+          core.info("Successfully updated PR description with fallback method");
+        }
+      }
+
       return;
     }
 

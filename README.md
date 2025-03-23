@@ -1,15 +1,18 @@
 # PR Image Width Adjuster
 
-Automatically adjust the display width of images in Pull Request descriptions by converting Markdown to HTML img tags.
+Automatically adjust the display width of images in Pull Request descriptions by converting Markdown to HTML img tags and updating existing HTML img tags.
 
 ## Purpose
 
-This GitHub Action was created to help React Native app developers who frequently add screenshots to their repositories. It automatically detects image URLs in pull request descriptions and adds a width attribute to control their display size without physically resizing the images.
+This GitHub Action was created to help React Native app developers who frequently add screenshots to their repositories. It automatically detects images in pull request descriptions and adds a width attribute to control their display size without physically resizing the images.
 
 ## Features
 
-- Automatically detects image URLs (jpg, jpeg, png) in pull request descriptions
+- Handles both formats:
+  - Markdown image syntax (`![alt](url)`)
+  - HTML img tags (`<img src="url" />`)
 - Converts Markdown image syntax to HTML `<img>` tags with width attribute
+- Adds width attribute to existing HTML img tags that don't have one
 - Preserves the original image URLs and alt text
 - No image downloading or processing required
 - Configurable target width
@@ -33,7 +36,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Adjust image widths in PR description
-        uses: mljlynch/image-resize-github-action@v1.0.1
+        uses: mljlynch/image-resize-github-action@v1.0.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           width: 500 # Set the desired width for images
@@ -48,11 +51,13 @@ jobs:
 
 ## Usage
 
-1. Add images to your pull request description using standard Markdown syntax: `![description](image_url)`
+1. Add images to your pull request description using either:
+   - Standard Markdown syntax: `![description](image_url)`
+   - HTML img tags: `<img src="image_url" alt="description" />`
 2. The action will automatically:
-   - Detect image URLs in the PR description
-   - Convert them to HTML `<img>` tags with the specified width
-   - Update the PR description with the HTML tags
+   - Detect images in the PR description
+   - Add width attribute to all image tags
+   - Update the PR description with the modified tags
 
 ## How It's Different
 
@@ -61,6 +66,7 @@ Our previous approach physically resized images by downloading, resizing, and re
 - **Faster**: No image processing or uploading required
 - **Simpler**: Fewer dependencies and potential points of failure
 - **More reliable**: Original image URLs are preserved
+- **More versatile**: Handles both Markdown and HTML image formats
 
 ## Development
 

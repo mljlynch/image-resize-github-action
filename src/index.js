@@ -6,8 +6,12 @@ const { promises: fsPromises } = require("fs");
 const os = require("os");
 
 // Regex to find image URLs in markdown
-const imageRegex =
+const markdownImageRegex =
   /!\[.*?\]\((https?:\/\/.*?\.(?:png|jpg|jpeg)(?:\?[^)]*)?)\)/g;
+
+// Regex to find existing HTML img tags
+const htmlImgTagRegex =
+  /<img.*?src="(https?:\/\/.*?\.(?:png|jpg|jpeg)(?:\?[^)]*)?)".*?>/gi;
 
 async function run() {
   try {
@@ -37,24 +41,31 @@ async function run() {
 
     const description = pullRequest.body || "";
 
-    // Find all image URLs in the description
-    const imageMatches = [...description.matchAll(imageRegex)];
+    // Find markdown image syntax
+    const markdownMatches = [...description.matchAll(markdownImageRegex)];
 
-    if (imageMatches.length === 0) {
+    // Find HTML img tags
+    const htmlTagMatches = [...description.matchAll(htmlImgTagRegex)];
+
+    const totalMatches = markdownMatches.length + htmlTagMatches.length;
+
+    if (totalMatches === 0) {
       core.info("No images found in pull request description.");
       return;
     }
 
-    core.info(`Found ${imageMatches.length} images in PR description.`);
+    core.info(
+      `Found ${totalMatches} images in PR description (${markdownMatches.length} markdown, ${htmlTagMatches.length} HTML).`
+    );
 
     let newDescription = description;
 
-    // Process each image
-    for (const match of imageMatches) {
+    // Process markdown images
+    for (const match of markdownMatches) {
       const [fullMatch, imageUrl] = match;
       const imageUrlDecoded = decodeURI(imageUrl);
 
-      core.info(`Processing image URL: ${imageUrlDecoded}`);
+      core.info(`Processing markdown image URL: ${imageUrlDecoded}`);
 
       try {
         // Replace the markdown image with HTML img tag including width attribute
@@ -68,6 +79,39 @@ async function run() {
       } catch (error) {
         core.warning(
           `Error processing image ${imageUrlDecoded}: ${error.message}`
+        );
+      }
+    }
+
+    // Process existing HTML img tags that don't have width attribute
+    for (const match of htmlTagMatches) {
+      const [fullMatch, imageUrl] = match;
+      const imageUrlDecoded = decodeURI(imageUrl);
+
+      // Check if the img tag already has a width attribute
+      if (!fullMatch.includes("width=")) {
+        core.info(`Processing HTML img tag: ${imageUrlDecoded}`);
+
+        try {
+          // Extract alt text if it exists
+          const altMatch = fullMatch.match(/alt="([^"]*)"/i);
+          const imgAltText = altMatch ? altMatch[1] : "";
+
+          // Create new tag with width attribute
+          const newHtmlTag = `<img width="${targetWidth}" src="${imageUrlDecoded}" alt="${imgAltText}" />`;
+
+          // Replace the original tag
+          newDescription = newDescription.replace(fullMatch, newHtmlTag);
+
+          core.info(`Added width attribute (${targetWidth}px) to HTML img tag`);
+        } catch (error) {
+          core.warning(
+            `Error processing HTML img tag ${imageUrlDecoded}: ${error.message}`
+          );
+        }
+      } else {
+        core.info(
+          `Skipping HTML img tag that already has width attribute: ${imageUrlDecoded}`
         );
       }
     }

@@ -2,48 +2,8 @@ const core = require("@actions/core");
 const github = require("@actions/github");
 const fs = require("fs");
 const path = require("path");
-const sharp = require("sharp");
-const { execSync } = require("child_process");
-const https = require("https");
 const { promises: fsPromises } = require("fs");
 const os = require("os");
-
-// Function to download an image
-async function downloadImage(url) {
-  const tempDir = await fsPromises.mkdtemp(
-    path.join(os.tmpdir(), "resize-action-")
-  );
-  const fileName = path.join(
-    tempDir,
-    `image-${Date.now()}-${path.basename(url)}`
-  );
-
-  return new Promise((resolve, reject) => {
-    https
-      .get(url, (response) => {
-        if (response.statusCode !== 200) {
-          reject(new Error(`Failed to download image: ${response.statusCode}`));
-          return;
-        }
-
-        const file = fs.createWriteStream(fileName);
-        response.pipe(file);
-
-        file.on("finish", () => {
-          file.close();
-          resolve(fileName);
-        });
-
-        file.on("error", (err) => {
-          fs.unlink(fileName, () => {});
-          reject(err);
-        });
-      })
-      .on("error", (err) => {
-        reject(err);
-      });
-  });
-}
 
 // Regex to find image URLs in markdown
 const imageRegex =
@@ -87,13 +47,6 @@ async function run() {
 
     core.info(`Found ${imageMatches.length} images in PR description.`);
 
-    // Create a temporary directory for processed images
-    const tempDirBase = await fsPromises.mkdtemp(
-      path.join(os.tmpdir(), "gh-action-")
-    );
-    const tempDir = path.join(tempDirBase, "processed");
-    await fsPromises.mkdir(tempDir, { recursive: true });
-
     let newDescription = description;
 
     // Process each image
@@ -104,60 +57,14 @@ async function run() {
       core.info(`Processing image URL: ${imageUrlDecoded}`);
 
       try {
-        // Download the image
-        const imagePath = await downloadImage(imageUrlDecoded);
+        // Replace the markdown image with HTML img tag including width attribute
+        const imgAltText = fullMatch.match(/!\[(.*?)\]/)[1] || "";
+        const htmlTag = `<img width="${targetWidth}" src="${imageUrlDecoded}" alt="${imgAltText}" />`;
 
-        // Get image info
-        const image = sharp(imagePath);
-        const metadata = await image.metadata();
+        // Replace the original markdown with the HTML img tag
+        newDescription = newDescription.replace(fullMatch, htmlTag);
 
-        // Only resize if the image is wider than target width
-        if (metadata.width > targetWidth) {
-          const outputFilename = path.join(
-            tempDir,
-            `resized-${path.basename(imageUrlDecoded)}`
-          );
-
-          await image.resize(targetWidth).toFile(outputFilename);
-
-          core.info(
-            `Resized image from ${metadata.width}px to ${targetWidth}px width`
-          );
-
-          // Create a GitHub gist to host the resized image
-          const fileContent = await fsPromises.readFile(outputFilename);
-          const base64Content = fileContent.toString("base64");
-
-          const { data: gist } = await octokit.rest.gists.create({
-            files: {
-              [path.basename(outputFilename)]: {
-                content: base64Content,
-                encoding: "base64",
-              },
-            },
-            public: true,
-            description: `Resized image for PR #${context.payload.pull_request.number}`,
-          });
-
-          // Get the raw URL of the gist file
-          const gistFile = Object.values(gist.files)[0];
-          const resizedImageUrl = gistFile.raw_url;
-
-          // Replace the original image URL with the resized one in the description
-          newDescription = newDescription.replace(
-            fullMatch,
-            fullMatch.replace(imageUrl, resizedImageUrl)
-          );
-
-          core.info(`Created resized image at ${resizedImageUrl}`);
-        } else {
-          core.info(
-            `Skipping image - already smaller than target width (${metadata.width}px)`
-          );
-        }
-
-        // Clean up downloaded file
-        await fsPromises.unlink(imagePath);
+        core.info(`Added width attribute (${targetWidth}px) to image`);
       } catch (error) {
         core.warning(
           `Error processing image ${imageUrlDecoded}: ${error.message}`
@@ -174,13 +81,10 @@ async function run() {
         body: newDescription,
       });
 
-      core.info("Successfully updated PR description with resized images");
+      core.info("Successfully updated PR description with HTML img tags");
     } else {
       core.info("No images needed to be updated in the PR description");
     }
-
-    // Clean up temp directory
-    await fsPromises.rm(tempDirBase, { recursive: true, force: true });
   } catch (error) {
     core.setFailed(error.message);
   }

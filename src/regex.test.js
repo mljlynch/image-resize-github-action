@@ -2,7 +2,7 @@
 describe("Image Regex Patterns", () => {
   // Import the regex patterns directly from the main file
   const markdownImageRegex =
-    /!\[.*?\]\((https?:\/\/.*?\.(?:png|jpg|jpeg)(?:\?[^)]*)?)\)/g;
+    /!\[.*?\]\((https?:\/\/.*?(?:\.(?:png|jpg|jpeg)|github\.com\/user-attachments\/assets\/[^)]+)(?:\?[^)]*)?)\)/g;
   const htmlImgTagRegex = /<img.*?src="(https?:\/\/.*?(?:\/[^"]*)?)".*?>/gi;
   const simpleImgRegex = /<img[^>]*src="([^"]*)"[^>]*>/gi;
 
@@ -21,6 +21,16 @@ describe("Image Regex Patterns", () => {
       expect(matches.length).toBe(1);
       expect(matches[0][1]).toBe(
         "https://example.com/image.jpg?size=large&v=2"
+      );
+    });
+
+    test("should match GitHub user-attachments URLs in markdown", () => {
+      const markdown =
+        "![Screenshot](https://github.com/user-attachments/assets/f181588d-2446-430f-9691-e0bf86b93d9f)";
+      const matches = [...markdown.matchAll(markdownImageRegex)];
+      expect(matches.length).toBe(1);
+      expect(matches[0][1]).toBe(
+        "https://github.com/user-attachments/assets/f181588d-2446-430f-9691-e0bf86b93d9f"
       );
     });
 

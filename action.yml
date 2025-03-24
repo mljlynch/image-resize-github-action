@@ -1,8 +1,8 @@
-name: "Image Resize Action"
-description: "Automatically resize images in Pull Request descriptions"
+name: "PR Image Width Adjuster"
+description: "Automatically converts markdown images to HTML img tags with width attribute in PR descriptions"
 inputs:
   width:
-    description: "Target width for resized images"
+    description: "Target width for images in pixels"
     required: false
     default: "300"
   token:

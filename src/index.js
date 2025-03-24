@@ -6,8 +6,11 @@ const { promises: fsPromises } = require("fs");
 const os = require("os");
 
 // Regex to find image URLs in markdown
-const imageRegex =
+const markdownImageRegex =
   /!\[.*?\]\((https?:\/\/.*?\.(?:png|jpg|jpeg)(?:\?[^)]*)?)\)/g;
+
+// Improved regex to find existing HTML img tags - more flexible with the URL pattern
+const htmlImgTagRegex = /<img.*?src="(https?:\/\/.*?(?:\/[^"]*)?)".*?>/gi;
 
 async function run() {
   try {
@@ -37,24 +40,105 @@ async function run() {
 
     const description = pullRequest.body || "";
 
-    // Find all image URLs in the description
-    const imageMatches = [...description.matchAll(imageRegex)];
+    // Enhanced debugging
+    core.info(`PR Description Length: ${description.length} characters`);
+    // Log description content safely (avoid leaking sensitive info)
+    core.info(`PR Description Excerpt: ${description.substring(0, 100)}...`);
 
-    if (imageMatches.length === 0) {
+    // Debug info for HTML img tags
+    const htmlImgTagMatch = description.match(/<img[^>]*>/gi);
+    if (htmlImgTagMatch) {
+      core.info(`Raw img tags found: ${htmlImgTagMatch.length}`);
+      core.info(`First img tag: ${htmlImgTagMatch[0]}`);
+    } else {
+      core.info("No raw img tags found in description");
+    }
+
+    // Find markdown image syntax
+    const markdownMatches = [...description.matchAll(markdownImageRegex)];
+
+    // Find HTML img tags
+    const htmlTagMatches = [...description.matchAll(htmlImgTagRegex)];
+
+    // Log debug info about matches
+    if (htmlTagMatches.length > 0) {
+      core.info(`HTML matches details: ${JSON.stringify(htmlTagMatches[0])}`);
+    }
+
+    const totalMatches = markdownMatches.length + htmlTagMatches.length;
+
+    if (totalMatches === 0) {
       core.info("No images found in pull request description.");
+
+      // Try a simpler approach as fallback
+      const simpleImgRegex = /<img[^>]*src="([^"]*)"[^>]*>/gi;
+      const simpleMatches = [...description.matchAll(simpleImgRegex)];
+
+      if (simpleMatches.length > 0) {
+        core.info(
+          `Found ${simpleMatches.length} images with simple regex fallback.`
+        );
+
+        let newDescription = description;
+        // Process images with simpler regex
+        for (const match of simpleMatches) {
+          const [fullMatch, imageUrl] = match;
+          core.info(`Processing image with fallback: ${imageUrl}`);
+
+          // Process all images, even if they already have a width attribute
+          try {
+            // Extract alt text if it exists
+            const altMatch = fullMatch.match(/alt="([^"]*)"/i);
+            const imgAltText = altMatch ? altMatch[1] : "";
+
+            if (fullMatch.includes("width=")) {
+              core.info(
+                `Updating existing width attribute to ${targetWidth}px with fallback method`
+              );
+            } else {
+              core.info(
+                `Adding width attribute (${targetWidth}px) with fallback method`
+              );
+            }
+
+            // Create new tag with width attribute
+            const newHtmlTag = `<img width="${targetWidth}" src="${imageUrl}" alt="${imgAltText}" />`;
+
+            // Replace the original tag
+            newDescription = newDescription.replace(fullMatch, newHtmlTag);
+          } catch (error) {
+            core.warning(`Error processing simple image: ${error.message}`);
+          }
+        }
+
+        // Update PR description if it was changed
+        if (newDescription !== description) {
+          await octokit.rest.pulls.update({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.payload.pull_request.number,
+            body: newDescription,
+          });
+
+          core.info("Successfully updated PR description with fallback method");
+        }
+      }
+
       return;
     }
 
-    core.info(`Found ${imageMatches.length} images in PR description.`);
+    core.info(
+      `Found ${totalMatches} images in PR description (${markdownMatches.length} markdown, ${htmlTagMatches.length} HTML).`
+    );
 
     let newDescription = description;
 
-    // Process each image
-    for (const match of imageMatches) {
+    // Process markdown images
+    for (const match of markdownMatches) {
       const [fullMatch, imageUrl] = match;
       const imageUrlDecoded = decodeURI(imageUrl);
 
-      core.info(`Processing image URL: ${imageUrlDecoded}`);
+      core.info(`Processing markdown image URL: ${imageUrlDecoded}`);
 
       try {
         // Replace the markdown image with HTML img tag including width attribute
@@ -68,6 +152,44 @@ async function run() {
       } catch (error) {
         core.warning(
           `Error processing image ${imageUrlDecoded}: ${error.message}`
+        );
+      }
+    }
+
+    // Process existing HTML img tags that don't have width attribute
+    for (const match of htmlTagMatches) {
+      const [fullMatch, imageUrl] = match;
+      const imageUrlDecoded = decodeURI(imageUrl);
+
+      // Process all HTML img tags, even if they already have a width attribute
+      core.info(`Processing HTML img tag: ${imageUrlDecoded}`);
+
+      try {
+        // Extract alt text if it exists
+        const altMatch = fullMatch.match(/alt="([^"]*)"/i);
+        const imgAltText = altMatch ? altMatch[1] : "";
+
+        if (fullMatch.includes("width=")) {
+          core.info(`Updating existing width attribute to ${targetWidth}px`);
+
+          // Replace the existing width attribute with the new value
+          // First create a new tag with our desired width
+          const newHtmlTag = `<img width="${targetWidth}" src="${imageUrlDecoded}" alt="${imgAltText}" />`;
+
+          // Replace the original tag
+          newDescription = newDescription.replace(fullMatch, newHtmlTag);
+        } else {
+          // Create new tag with width attribute
+          const newHtmlTag = `<img width="${targetWidth}" src="${imageUrlDecoded}" alt="${imgAltText}" />`;
+
+          // Replace the original tag
+          newDescription = newDescription.replace(fullMatch, newHtmlTag);
+
+          core.info(`Added width attribute (${targetWidth}px) to HTML img tag`);
+        }
+      } catch (error) {
+        core.warning(
+          `Error processing HTML img tag ${imageUrlDecoded}: ${error.message}`
         );
       }
     }

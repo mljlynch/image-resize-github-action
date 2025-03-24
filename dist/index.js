@@ -34499,7 +34499,7 @@ const os = __nccwpck_require__(2037);
 
 // Regex to find image URLs in markdown
 const markdownImageRegex =
-  /!\[.*?\]\((https?:\/\/.*?\.(?:png|jpg|jpeg)(?:\?[^)]*)?)\)/g;
+  /!\[.*?\]\((https?:\/\/.*?(?:\.(?:png|jpg|jpeg)|github\.com\/user-attachments\/assets\/[^)]+)(?:\?[^)]*)?)\)/g;
 
 // Improved regex to find existing HTML img tags - more flexible with the URL pattern
 const htmlImgTagRegex = /<img.*?src="(https?:\/\/.*?(?:\/[^"]*)?)".*?>/gi;
